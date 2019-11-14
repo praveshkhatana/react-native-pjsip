@@ -56,14 +56,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import android.app.PendingIntent;
-import android.app.Notification;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.NotificationManagerCompat;
-import android.app.NotificationManager;
-import android.media.RingtoneManager;
-import android.net.Uri;
-
 public class PjSipService extends Service {
 
     private static String TAG = "PjSipService";
@@ -241,42 +233,12 @@ public class PjSipService extends Service {
 
             mInitialized = true;
 
-            // Run the service as foreground service
-            try {
-                String ns = getApplicationContext().getPackageName();
-                String cls = ns + ".MainActivity";
-                Intent notificationIntent = new Intent(getApplicationContext(), Class.forName(cls));
-                PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
-                Notification notification = new NotificationCompat.Builder(this, "pjsip_background_service_channel")
-                        .setContentTitle("Application running").setContentIntent(pendingIntent).build();
-                startForeground(358368, notification);
-            } catch (Exception e) {
-                Log.w(TAG, "Failed to open application on received call", e);
-            }
-
             job(new Runnable() {
                 @Override
                 public void run() {
                     load();
                 }
             });
-        } else {
-            if (intent != null && intent.getAction() != null) {
-                if (intent.getAction().equals(PjActions.ACTION_ANSWER_CALL)) {
-                    cancelCallNotification();
-
-                    Intent dialogIntent = new Intent();
-                    dialogIntent.setClassName("com.fluentcloud", "com.fluentcloud.MainActivity");
-                    dialogIntent.setAction(Intent.ACTION_MAIN);
-                    dialogIntent.addCategory(Intent.CATEGORY_LAUNCHER);
-                    dialogIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(dialogIntent);
-
-                    return START_NOT_STICKY;
-                } else if (intent.getAction().equals(PjActions.ACTION_DECLINE_CALL)) {
-                    cancelCallNotification();
-                }
-            }
         }
 
         if (intent != null) {
@@ -304,8 +266,6 @@ public class PjSipService extends Service {
         } catch (Exception e) {
             Log.w(TAG, "Failed to destroy PjSip library", e);
         }
-
-        cancelCallNotification();
 
         unregisterReceiver(mPhoneStateChangedReceiver);
 
@@ -734,8 +694,6 @@ public class PjSipService extends Service {
             call.hangup(prm);
             prm.delete();
 
-            cancelCallNotification();
-
             mEmitter.fireIntentHandled(intent);
         } catch (Exception e) {
             mEmitter.fireIntentHandled(intent, e);
@@ -754,8 +712,6 @@ public class PjSipService extends Service {
 
             // Automatically put other calls on hold.
             doPauseParallelCalls(call);
-
-            cancelCallNotification();
 
             mEmitter.fireIntentHandled(intent);
         } catch (Exception e) {
@@ -1014,52 +970,8 @@ public class PjSipService extends Service {
         **/
 
         // -----
-
-        try {
-            String remoteUri = call.toJson().getString("remoteUri");
-            final int callId = call.getId();
-
-            String ns = getApplicationContext().getPackageName();
-            String cls = ns + ".MainActivity";
-            Intent intent = new Intent(getApplicationContext(), Class.forName(cls));
-            PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, 0);
-
-            // for receiving call action
-            Intent actionAnswerIntent = new Intent(this, PjSipService.class);
-            actionAnswerIntent.setAction(PjActions.ACTION_ANSWER_CALL);
-            actionAnswerIntent.putExtra("call_id", callId);
-            PendingIntent actionAnswerPendingIntent = PendingIntent.getService(this, 0, actionAnswerIntent, 0);
-            
-            // for terminating call
-            Intent actionTerminateIntent = new Intent(this, PjSipService.class);
-            actionTerminateIntent.setAction(PjActions.ACTION_DECLINE_CALL);
-            actionTerminateIntent.putExtra("call_id", callId);
-            PendingIntent actionTerminatePendingIntent = PendingIntent.getService(this, 0, actionTerminateIntent, 0);
-
-            NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "pjsip_background_call_channel")
-                    .setContentTitle("Incoming call...").setContentText(remoteUri)
-                    .setPriority(NotificationCompat.PRIORITY_HIGH).setContentIntent(pendingIntent)
-                    .setAutoCancel(true).setSmallIcon(R.drawable.icon)
-                    .setSound(getRingtoneUri())
-                    .addAction(R.drawable.icon, "Answer", actionAnswerPendingIntent)
-                    .addAction(R.drawable.icon, "Decline", actionTerminatePendingIntent);
-            NotificationManager notificationManager = (NotificationManager) getSystemService(
-                    Service.NOTIFICATION_SERVICE);
-            notificationManager.notify(358369, builder.build());
-        } catch (Exception e) {
-            Log.w(TAG, "Failed to open application on received call", e);
-        }
-
         mCalls.add(call);
         mEmitter.fireCallReceivedEvent(call);
-    }
-
-    private Uri getRingtoneUri() {
-        Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
-        if(sound == null){
-            sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-        }
-        return sound;
     }
 
     void emmitCallStateChanged(PjSipCall call, OnCallStateParam prm) {
@@ -1112,8 +1024,6 @@ public class PjSipService extends Service {
 
     void emmitCallTerminated(PjSipCall call, OnCallStateParam prm) {
         final int callId = call.getId();
-
-        cancelCallNotification();
 
         job(new Runnable() {
             @Override
@@ -1174,11 +1084,6 @@ public class PjSipService extends Service {
                 Log.w(TAG, "Failed to put call on hold", e);
             }
         }
-    }
-
-    private void cancelCallNotification() {
-        NotificationManager notificationManager = (NotificationManager) getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
-        notificationManager.cancel(358369);
     }
 
     protected class PhoneStateChangedReceiver extends BroadcastReceiver {
