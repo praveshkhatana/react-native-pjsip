@@ -1,5 +1,11 @@
 package com.carusto.ReactNativePjSip;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.support.v4.app.NotificationCompat;
+
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -57,6 +63,8 @@ import java.util.List;
 import java.util.Map;
 
 public class PjSipService extends Service {
+
+    public static final String CHANNEL_ID = "ForegroundServiceChannel";
 
     private static String TAG = "PjSipService";
 
@@ -250,6 +258,19 @@ public class PjSipService extends Service {
             });
         }
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Intent notificationIntent = new Intent(this, PjSipService.class);
+            PendingIntent pendingIntent = PendingIntent.getActivity(this,
+                0, notificationIntent, 0);
+
+            Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("FluentStream Foreground Service")
+                .setContentText("")
+                .setContentIntent(pendingIntent)
+                .build();
+            startForeground(1, notification);
+        }
+
         return START_NOT_STICKY;
     }
 
@@ -266,6 +287,8 @@ public class PjSipService extends Service {
         } catch (Exception e) {
             Log.w(TAG, "Failed to destroy PjSip library", e);
         }
+
+        unregisterReceiver(mPhoneStateChangedReceiver);
 
         super.onDestroy();
     }
