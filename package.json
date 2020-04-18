@@ -24,7 +24,8 @@
     "eslint-plugin-react-native": "^3.3.0",
     "gh-pages": "^2.0.0",
     "jsdoc": "^3.5.5",
-    "minami": "^1.2.3"
+    "minami": "^1.2.3",
+    "typescript": "^3.8.3"
   },
   "name": "react-native-pjsip",
   "description": "PJSIP module for React Native",
@@ -46,5 +47,7 @@
     "type": "git",
     "url": "git+https://github.com/datso/react-native-pjsip.git"
   },
-  "version": "2.8.0"
+  "version": "2.8.0",
+  "main": "index.js",
+  "types": "index.d.ts"
 }
